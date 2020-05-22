@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import math
 import re
+import random
 
 #Some Constants/Initial Variables
 CORRECT = "#icon__form__check"
@@ -59,23 +60,37 @@ def get_predictions(game,names):
 		expert_predictions[names[i]]=predictions[i]
 	return expert_predictions
 
-#Choose prediction that has higher sum of weights
-def draw(expert_predictions, weights):
-	weighted_predictions = {}
-	for expert in expert_predictions:
-		pred = expert_predictions.get(expert)
-		weight = weights.get(expert)
-		if pred not in weighted_predictions:
-			weighted_predictions[pred] = weight
-		else:
-			weighted_predictions[pred] += weight
-	return max(weighted_predictions, key=weighted_predictions.get)
+# # OLD DRAW, FROM MAJORITY WEIGHTS ALGORITHM
+# def draw(expert_predictions, weights):
+# 	weighted_predictions = {}
+# 	for expert in expert_predictions:
+# 		pred = expert_predictions.get(expert)
+# 		weight = weights.get(expert)
+# 		if pred not in weighted_predictions:
+# 			weighted_predictions[pred] = weight
+# 		else:
+# 			weighted_predictions[pred] += weight
+# 	return max(weighted_predictions, key=weighted_predictions.get)
+
+#New Draw Implementation, Multiplicative Weights
+def draw_expert(weights):
+	vals = list(weights.values())
+	experts = list(weights.keys())
+	choice = random.uniform(0, sum(vals))
+	index = 0
+	for weight in vals:
+		choice -= weight
+		if choice <=0:
+			return experts[index]
+		index+=1
+
+def draw_prediction(predictions,expert):
+	return predictions.get(expert)
 
 #Determine whether each expert was right or wrong for the game's prediction
-def get_losses(game):
+def get_losses(game, names):
 	predictions = game.findAll("div", {"class": "PassFailWrapper__Badge"})
 	losses = []
-	# print(predictions)
 	for p in predictions:
 		predicted_winner = p.find("img")
 		is_correct = p.find("use")['xlink:href']
@@ -83,23 +98,23 @@ def get_losses(game):
 			losses.append(0)
 		else:
 			losses.append(1)
-	return losses
+	expert_losses={}
+	for i in range(len(losses)):
+		expert_losses[names[i]]=losses[i]
+	return expert_losses
 
 #Determine if algorithm prediction was correct
-def is_correct(losses):
+def is_correct(losses,expert):
 	if len(losses)==0:
 		return "WINNER NOT KNOWN"
-	return sum(losses)==0
+	return losses[expert]==0
 
 #Update weights based on losses
 def update_weights(losses,names,weights,epsilon):
 	if len(losses)==0:
 		return
-	daily_loss = {}
-	for i in range(len(names)):
-		daily_loss[names[i]]=losses[i]
 	for expert in weights:
-		weights[expert] = weights[expert] * (1-epsilon)**(daily_loss[expert])
+		weights[expert] = weights[expert] * (1-epsilon)**(losses[expert])
 
 
 def process(link):
@@ -123,11 +138,15 @@ def process(link):
 		print("GAME: ",matchups[i])
 		game = games[i]
 		predictions = get_predictions(game,names)
-		print("OUR PREDICTION: ", draw(predictions, weights))
-		losses = get_losses(game)
-		print ("CORRECT?: ", is_correct(losses))
+		expert = draw_expert(weights)
+		print(expert)
+		prediction = draw_prediction(predictions,expert)
+		print("OUR PREDICTION: ", prediction)
+		losses = get_losses(game,names)
+		print ("CORRECT?: ", is_correct(losses,expert))
 		update_weights(losses,names,weights,epsilon)
-		print("UPDATED WEIGHTS: ", weights)
+		# print("UPDATED WEIGHTS: ", weights)
+		print("")
 
 process(this_link)
 
