@@ -182,6 +182,7 @@ def process_season(base_link):
 		link = base_link+str(i)
 		total_accuracy.append(process_week(link,weights))
 	print ("TOTAL ACCURACY:",sum(total_accuracy)/float(len(total_accuracy)))
+	print("FINAL WEIGHTS:", weights)
 		
 
 base_link = "https://www.espn.com/nfl/picks/_/seasontype/2/week/"
