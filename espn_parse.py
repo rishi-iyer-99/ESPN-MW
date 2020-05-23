@@ -47,10 +47,15 @@ def get_games(table):
 
 #Given a game, get each expert's predictions
 def get_predictions(game,names):
-	predictions = game.findAll("img")
-	predictions = [p['src'] for p in predictions]
+	predictions = game.findAll("td")
+	# predictions = [p['src'] for p in predictions]
 	for i in range(len(predictions)):
 		s = predictions[i]
+		if s.getText()=="No Pick":
+			predictions[i]=predictions[i-1]
+			continue
+		s = s.find("img")
+		s=s['src']
 		result = re.search('teamlogos/nfl/500/(.*).png', s)
 		predictions[i]=result.group(1).upper()
 	expert_predictions = {}
@@ -87,9 +92,15 @@ def draw_prediction(predictions,expert):
 
 #Determine whether each expert was right or wrong for the game's prediction
 def get_losses(game, names):
-	predictions = game.findAll("div", {"class": "PassFailWrapper__Badge"})
+	predictions = game.findAll("td")
 	losses = []
 	for p in predictions:
+		if p.getText()=="No Pick":
+			losses.append(1)
+			continue
+		p = p.find("div", {"class": "PassFailWrapper__Badge"})
+		if p is None:
+			continue
 		predicted_winner = p.find("img")
 		is_correct = p.find("use")['xlink:href']
 		if is_correct==CORRECT:
@@ -166,18 +177,15 @@ def process_season(base_link):
 	for name in names:
 		weights[name]=1
 
-	for i in range(1,10):
+	for i in range(1,18):
 		print("ANALYZING WEEK", i)
 		link = base_link+str(i)
 		total_accuracy.append(process_week(link,weights))
 	print ("TOTAL ACCURACY:",sum(total_accuracy)/float(len(total_accuracy)))
 		
 
-this_link = "https://www.espn.com/nfl/picks/_/seasontype/2/week/14"
 base_link = "https://www.espn.com/nfl/picks/_/seasontype/2/week/"
-
 process_season(base_link)
-# process_week(this_link)
 
 
 
