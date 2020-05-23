@@ -7,8 +7,6 @@ import random
 #Some Constants/Initial Variables
 CORRECT = "#icon__form__check"
 
-this_link = "https://www.espn.com/nfl/picks/_/seasontype/2/week/1"
-
 #Get the soup for page 
 def get_soup(link):
 	page = requests.get(link)
@@ -60,7 +58,7 @@ def get_predictions(game,names):
 		expert_predictions[names[i]]=predictions[i]
 	return expert_predictions
 
-# # OLD DRAW, FROM MAJORITY WEIGHTS ALGORITHM
+# OLD DRAW, FROM MAJORITY WEIGHTS ALGORITHM
 # def draw(expert_predictions, weights):
 # 	weighted_predictions = {}
 # 	for expert in expert_predictions:
@@ -116,39 +114,70 @@ def update_weights(losses,names,weights,epsilon):
 	for expert in weights:
 		weights[expert] = weights[expert] * (1-epsilon)**(losses[expert])
 
-
-def process(link):
+#Run predictions for all matchups in a week
+def process_week(link,weights):
 	soup = get_soup(link)
 	table = get_table(soup)
 	names = get_experts(table)
 	matchups = get_matchups(soup)
 	games = get_games(table)
 
-	#Initialize dictionary of expert weights
-	weights = {}
-	for name in names:
-		weights[name]=1
-
 	#set epsilon value
 	T = 256 #Number of Games in NFL regular season
-	n = len(names) #nNumber of experts
+	n = len(names) #Number of experts
 	epsilon = math.sqrt(math.log(n)/T)
+
+	games_total = 0
+	games_correct = 0
 
 	for i in range(len(matchups)):
 		print("GAME: ",matchups[i])
 		game = games[i]
 		predictions = get_predictions(game,names)
 		expert = draw_expert(weights)
-		print(expert)
+		# print("SELECTED EXPERT:",expert)
 		prediction = draw_prediction(predictions,expert)
 		print("OUR PREDICTION: ", prediction)
 		losses = get_losses(game,names)
-		print ("CORRECT?: ", is_correct(losses,expert))
+		correct = is_correct(losses,expert)
+		print ("CORRECT?: ",correct )
 		update_weights(losses,names,weights,epsilon)
 		# print("UPDATED WEIGHTS: ", weights)
+		games_total +=1
+		if correct:
+			games_correct+=1
 		print("")
 
-process(this_link)
+	weekly_accuracy = games_correct/float(games_total)
+	print ("WEEKLY ACCURACY:", weekly_accuracy)
+	print("-------------------------------")
+	return weekly_accuracy
+
+#Run predictions for all matchups in a season
+def process_season(base_link):
+	total_accuracy = []
+
+	#Initialize dictionary of expert weights
+	link = base_link+str(1)
+	soup = get_soup(link)
+	table = get_table(soup)
+	names = get_experts(table)
+	weights = {}
+	for name in names:
+		weights[name]=1
+
+	for i in range(1,10):
+		print("ANALYZING WEEK", i)
+		link = base_link+str(i)
+		total_accuracy.append(process_week(link,weights))
+	print ("TOTAL ACCURACY:",sum(total_accuracy)/float(len(total_accuracy)))
+		
+
+this_link = "https://www.espn.com/nfl/picks/_/seasontype/2/week/14"
+base_link = "https://www.espn.com/nfl/picks/_/seasontype/2/week/"
+
+process_season(base_link)
+# process_week(this_link)
 
 
 
